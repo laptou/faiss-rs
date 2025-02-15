@@ -39,10 +39,11 @@ macro_rules! impl_native_linear_transform {
 }
 
 /// A macro which provides a native index implementation to the given type.
-macro_rules! impl_native_index {
-    ($t:ty) => { impl_native_index!($t,); };
-    ($t:ty, $($g:ident),*) => {
-        impl<$($g),*> crate::index::Index for $t {
+macro_rules! impl_index {
+    ($t:ty) => { impl_index!($t,); };
+    ($t:ty, $($l:lifetime $(: $lbound:tt)?,)* $($g:ident $(: $bound:tt)?),*) => {
+        impl<$($l,)* $($g),*> crate::index::Index for $t
+        where $($($l: $lbound,)?)* $($($g: $bound,)?)* {
             fn is_trained(&self) -> bool {
                 unsafe { faiss_Index_is_trained(self.inner_ptr()) != 0 }
             }

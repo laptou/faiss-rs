@@ -136,7 +136,7 @@ impl FromInnerPtr for IVFFlatIndexImpl {
     }
 }
 
-impl_native_index!(IVFFlatIndex);
+impl_index!(IVFFlatIndex);
 impl_concurrent_index!(IVFFlatIndexImpl);
 
 impl TryClone for IVFFlatIndexImpl {

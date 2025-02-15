@@ -105,7 +105,7 @@ impl FromInnerPtr for PreTransformIndexImpl<IndexImpl> {
     }
 }
 
-impl_native_index!(PreTransformIndexImpl<I>, I);
+impl_index!(PreTransformIndexImpl<I>, I);
 impl_concurrent_index!(PreTransformIndexImpl<I>, I: ConcurrentIndex);
 
 impl<I> TryClone for PreTransformIndexImpl<I> {

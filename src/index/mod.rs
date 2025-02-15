@@ -546,7 +546,7 @@ impl<NI: NativeIndex> UpcastIndex for NI {
     }
 }
 
-impl_native_index!(IndexImpl);
+impl_index!(IndexImpl);
 
 impl TryClone for IndexImpl {
     fn try_clone(&self) -> Result<Self>

@@ -99,7 +99,7 @@ impl FromInnerPtr for ScalarQuantizerIndexImpl {
     }
 }
 
-impl_native_index!(ScalarQuantizerIndexImpl);
+impl_index!(ScalarQuantizerIndexImpl);
 
 impl TryClone for ScalarQuantizerIndexImpl {
     fn try_clone(&self) -> Result<Self>
@@ -274,7 +274,7 @@ impl FromInnerPtr for IVFScalarQuantizerIndexImpl<IndexImpl> {
     }
 }
 
-impl_native_index!(IVFScalarQuantizerIndexImpl<Q>, Q);
+impl_index!(IVFScalarQuantizerIndexImpl<Q>, Q);
 impl_concurrent_index!(IVFScalarQuantizerIndexImpl<Q>, Q: ConcurrentIndex);
 
 impl<Q> TryClone for IVFScalarQuantizerIndexImpl<Q> {

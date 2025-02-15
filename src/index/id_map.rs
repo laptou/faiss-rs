@@ -194,7 +194,7 @@ where
     }
 }
 
-impl_native_index!(IdMap<I>, I);
+impl_index!(IdMap<I>, I);
 impl_concurrent_index!(IdMap<I>, I: ConcurrentIndex);
 
 impl IndexImpl {

@@ -98,7 +98,7 @@ impl TryFromInnerPtr for RefineFlatIndexImpl<IndexImpl> {
     }
 }
 
-impl_native_index!(RefineFlatIndexImpl<I>, I);
+impl_index!(RefineFlatIndexImpl<I>, I);
 impl_concurrent_index!(RefineFlatIndexImpl<I>, I: ConcurrentIndex);
 
 impl<I> TryClone for RefineFlatIndexImpl<I> {
