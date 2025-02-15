@@ -54,12 +54,12 @@
 //!
 
 use crate::error::{Error, Result};
+use crate::faiss_try;
 use crate::index::{
     self, AssignSearchResult, ConcurrentIndex, CpuIndex, FromInnerPtr, Idx, Index, NativeIndex,
     RangeSearchResult, SearchResult,
 };
 use crate::selector::IdSelector;
-use crate::faiss_try;
 use faiss_sys::*;
 
 use std::marker::PhantomData;

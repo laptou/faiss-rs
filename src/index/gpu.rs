@@ -3,14 +3,10 @@
 use super::flat::FlatIndexImpl;
 use super::ivf_flat::IVFFlatIndexImpl;
 use super::scalar_quantizer::IVFScalarQuantizerIndexImpl;
-use super::{
-    AssignSearchResult, CpuIndex, FromInnerPtr, Idx, Index, IndexImpl, NativeIndex,
-    RangeSearchResult, SearchResult,
-};
+use super::{CpuIndex, FromInnerPtr, Idx, Index, IndexImpl, NativeIndex};
 use crate::error::Result;
 use crate::faiss_try;
 use crate::gpu::GpuResourcesProvider;
-use crate::metric::MetricType;
 use crate::selector::IdSelector;
 use faiss_sys::*;
 use std::marker::PhantomData;

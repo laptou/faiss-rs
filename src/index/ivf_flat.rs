@@ -148,7 +148,6 @@ impl TryClone for IVFFlatIndexImpl {
     }
 }
 
-
 impl IndexImpl {
     /// Attempt a dynamic cast of an index to the IVF flat index type.
     pub fn into_ivf_flat(self) -> Result<IVFFlatIndexImpl> {

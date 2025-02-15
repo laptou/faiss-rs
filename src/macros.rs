@@ -149,7 +149,7 @@ macro_rules! impl_index {
                     Ok(crate::index::RangeSearchResult { inner: p_res })
                 }
             }
-            
+
             fn reconstruct(
                 &self,
                 idx: Idx,
@@ -160,7 +160,7 @@ macro_rules! impl_index {
                     if d != output.len() {
                         return Err(crate::error::Error::BadDimension);
                     }
-                    
+
                     faiss_try(faiss_Index_reconstruct(
                         self.inner_ptr(),
                         idx.0,
@@ -172,9 +172,9 @@ macro_rules! impl_index {
             }
 
             fn reconstruct_n(
-                &self, 
-                first_key: Idx, 
-                count: usize, 
+                &self,
+                first_key: Idx,
+                count: usize,
                 output: &mut [f32]
             ) -> Result<()> {
                 unsafe {
@@ -182,7 +182,7 @@ macro_rules! impl_index {
                     if count * d != output.len() {
                         return Err(crate::error::Error::BadDimension);
                     }
-                    
+
                     faiss_try(faiss_Index_reconstruct_n(
                         self.inner_ptr(),
                         first_key.0,

@@ -39,7 +39,7 @@ impl fmt::Display for Error {
             Error::GpuResourcesMatch => {
                 fmt.write_str("Number of GPU resources and devices do not match")
             }
-            Error::BadDimension => fmt.write_str("invalid vector dimension")
+            Error::BadDimension => fmt.write_str("invalid vector dimension"),
         }
     }
 }
