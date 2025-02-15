@@ -59,12 +59,11 @@ use crate::index::{
     RangeSearchResult, SearchResult,
 };
 use crate::selector::IdSelector;
-use crate::{faiss_try, MetricType};
+use crate::faiss_try;
 use faiss_sys::*;
 
 use std::marker::PhantomData;
 use std::mem;
-use std::os::raw::c_int;
 use std::ptr;
 
 use super::IndexImpl;
