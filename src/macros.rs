@@ -40,8 +40,9 @@ macro_rules! impl_native_linear_transform {
 
 /// A macro which provides a native index implementation to the given type.
 macro_rules! impl_native_index {
-    ($t:ty) => {
-        impl crate::index::Index for $t {
+    ($t:ty) => { impl_native_index!($t,); };
+    ($t:ty, $($g:ident),*) => {
+        impl<$($g),*> crate::index::Index for $t {
             fn is_trained(&self) -> bool {
                 unsafe { faiss_Index_is_trained(self.inner_ptr()) != 0 }
             }
@@ -226,10 +227,12 @@ macro_rules! impl_native_index {
 
 /// A macro which provides a concurrent index implementation to the given type.
 macro_rules! impl_concurrent_index {
-    ($t:ty) => {
-        impl crate::index::ConcurrentIndex for $t
+    ($t:ty) => { impl_concurrent_index!($t,); };
+    ($t:ty, $($g:ident $(: $bound:tt)?),*) => {
+        impl<$($g),*> crate::index::ConcurrentIndex for $t
         where
             Self: crate::index::Index + crate::index::NativeIndex,
+            $($($g: $bound,)?)*
         {
             fn assign(&self, query: &[f32], k: usize) -> Result<AssignSearchResult> {
                 unsafe {
