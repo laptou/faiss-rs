@@ -59,10 +59,7 @@ fn static_link_faiss() {
             "cargo:rustc-link-search=native={}",
             mkl_root.join("bin").display()
         );
-        println!(
-            "cargo:rustc-link-search={}",
-            mkl_root.join("lib").display()
-        );
+        println!("cargo:rustc-link-search={}", mkl_root.join("lib").display());
 
         println!(
             "cargo:rustc-link-search=native={}",
@@ -73,9 +70,20 @@ fn static_link_faiss() {
             compiler_root.join("lib").display()
         );
 
-        println!("cargo:rustc-link-lib=mkl_intel_lp64_dll");
-        println!("cargo:rustc-link-lib=mkl_intel_thread_dll");
-        println!("cargo:rustc-link-lib=mkl_core_dll");
+        #[cfg(windows)]
+        {
+            println!("cargo:rustc-link-lib=mkl_intel_lp64_dll");
+            println!("cargo:rustc-link-lib=mkl_intel_thread_dll");
+            println!("cargo:rustc-link-lib=mkl_core_dll");
+        }
+
+        #[cfg(unix)]
+        {
+            println!("cargo:rustc-link-lib=mkl_intel_lp64");
+            println!("cargo:rustc-link-lib=mkl_intel_thread");
+            println!("cargo:rustc-link-lib=mkl_core");
+        }
+
         println!("cargo:rustc-link-lib=libiomp5md");
     } else if let Ok(mkl_root) = std::env::var("MKLROOT") {
         println!("using MKLROOT={mkl_root:?}");
@@ -90,9 +98,20 @@ fn static_link_faiss() {
             mkl_root.join("lib").display()
         );
 
-        println!("cargo:rustc-link-lib=dylib=mkl_core_dll");
-        println!("cargo:rustc-link-lib=dylib=mkl_intel_lp64_dll");
-        println!("cargo:rustc-link-lib=dylib=mkl_intel_thread_dll");
+        #[cfg(windows)]
+        {
+            println!("cargo:rustc-link-lib=mkl_intel_lp64_dll");
+            println!("cargo:rustc-link-lib=mkl_intel_thread_dll");
+            println!("cargo:rustc-link-lib=mkl_core_dll");
+        }
+
+        #[cfg(unix)]
+        {
+            println!("cargo:rustc-link-lib=mkl_intel_lp64");
+            println!("cargo:rustc-link-lib=mkl_intel_thread");
+            println!("cargo:rustc-link-lib=mkl_core");
+        }
+
         println!("cargo:rustc-link-lib=dylib=libiomp5md");
     } else {
         println!("cargo:rustc-link-lib=gomp");
