@@ -22,6 +22,64 @@ fn static_link_faiss() {
         .profile("RelWithDebInfo")
         .very_verbose(true);
 
+    if let Ok(oneapi_root) = std::env::var("ONEAPI_ROOT") {
+        println!("using ONEAPI_ROOT={oneapi_root:?}");
+
+        // if using Intel oneAPI (such as on Windows), we need libraries from
+        // the mkl folder and the compiler folder
+        let oneapi_root = PathBuf::from(oneapi_root);
+        let mkl_root = oneapi_root.join("mkl").join("latest");
+        let compiler_root = oneapi_root.join("compiler").join("latest");
+
+        println!(
+            "cargo:rustc-link-search=native={}",
+            mkl_root.join("bin").display()
+        );
+        println!("cargo:rustc-link-search={}", mkl_root.join("lib").display());
+
+        println!(
+            "cargo:rustc-link-search=native={}",
+            compiler_root.join("bin").display()
+        );
+        println!(
+            "cargo:rustc-link-search={}",
+            compiler_root.join("lib").display()
+        );
+
+        println!("cargo:rustc-link-lib=mkl_intel_lp64_dll");
+        println!("cargo:rustc-link-lib=mkl_intel_thread_dll");
+        println!("cargo:rustc-link-lib=mkl_core_dll");
+        println!("cargo:rustc-link-lib=libiomp5md");
+
+        cfg.env("MKLROOT", &mkl_root);
+        cfg.env("LIB", mkl_root.join("lib"));
+    } else if let Ok(mkl_root) = std::env::var("MKLROOT") {
+        println!("using MKLROOT={mkl_root:?}");
+        let mkl_root = PathBuf::from(mkl_root);
+
+        println!(
+            "cargo:rustc-link-search=native={}",
+            mkl_root.join("bin").display()
+        );
+        println!(
+            "cargo:rustc-link-search=native={}",
+            mkl_root.join("lib").display()
+        );
+
+        println!("cargo:rustc-link-lib=dylib=mkl_core_dll");
+        println!("cargo:rustc-link-lib=dylib=mkl_intel_lp64_dll");
+        println!("cargo:rustc-link-lib=dylib=mkl_intel_thread_dll");
+        println!("cargo:rustc-link-lib=dylib=libiomp5md");
+        cfg.define("MKLROOT", mkl_root);
+    } else {
+        println!("cargo:rustc-link-lib=gomp");
+        println!("cargo:rustc-link-lib=blas");
+        println!("cargo:rustc-link-lib=lapack");
+    }
+
+    println!("cargo:rerun-if-env-changed=ONEAPI_ROOT");
+    println!("cargo:rerun-if-env-changed=MKLROOT");
+
     let profile = cfg.get_profile().to_owned();
     let dst = cfg.build();
 
@@ -45,63 +103,6 @@ fn static_link_faiss() {
     );
     println!("cargo:rustc-link-lib=static=faiss_c");
     println!("cargo:rustc-link-lib=static=faiss");
-
-    if let Ok(oneapi_root) = std::env::var("ONEAPI_ROOT") {
-        println!("using ONEAPI_ROOT={oneapi_root:?}");
-
-        // if using Intel oneAPI (such as on Windows), we need libraries from
-        // the mkl folder and the compiler folder
-        let oneapi_root = PathBuf::from(oneapi_root);
-        let mkl_root = oneapi_root.join("mkl").join("latest");
-        let compiler_root = oneapi_root.join("compiler").join("latest");
-
-        println!(
-            "cargo:rustc-link-search=native={}",
-            mkl_root.join("bin").display()
-        );
-        println!(
-            "cargo:rustc-link-search={}",
-            mkl_root.join("lib").display()
-        );
-
-        println!(
-            "cargo:rustc-link-search=native={}",
-            compiler_root.join("bin").display()
-        );
-        println!(
-            "cargo:rustc-link-search={}",
-            compiler_root.join("lib").display()
-        );
-
-        println!("cargo:rustc-link-lib=mkl_intel_lp64_dll");
-        println!("cargo:rustc-link-lib=mkl_intel_thread_dll");
-        println!("cargo:rustc-link-lib=mkl_core_dll");
-        println!("cargo:rustc-link-lib=libiomp5md");
-    } else if let Ok(mkl_root) = std::env::var("MKLROOT") {
-        println!("using MKLROOT={mkl_root:?}");
-        let mkl_root = PathBuf::from(mkl_root);
-
-        println!(
-            "cargo:rustc-link-search=native={}",
-            mkl_root.join("bin").display()
-        );
-        println!(
-            "cargo:rustc-link-search=native={}",
-            mkl_root.join("lib").display()
-        );
-
-        println!("cargo:rustc-link-lib=dylib=mkl_core_dll");
-        println!("cargo:rustc-link-lib=dylib=mkl_intel_lp64_dll");
-        println!("cargo:rustc-link-lib=dylib=mkl_intel_thread_dll");
-        println!("cargo:rustc-link-lib=dylib=libiomp5md");
-    } else {
-        println!("cargo:rustc-link-lib=gomp");
-        println!("cargo:rustc-link-lib=blas");
-        println!("cargo:rustc-link-lib=lapack");
-    }
-
-    println!("cargo:rerun-if-env-changed=ONEAPI_ROOT");
-    println!("cargo:rerun-if-env-changed=MKLROOT");
 
     link_cxx();
 
