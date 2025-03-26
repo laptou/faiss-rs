@@ -7,7 +7,7 @@ fn main() {
 
 #[cfg(feature = "static")]
 fn static_link_faiss() {
-    use std::path::PathBuf;
+    use std::{ffi::OsString, path::PathBuf, process::Command};
 
     let mut cfg = cmake::Config::new("faiss");
 
@@ -94,9 +94,43 @@ fn static_link_faiss() {
         println!("cargo:rustc-link-lib=dylib=libiomp5md");
         cfg.define("MKLROOT", mkl_root);
     } else {
-        println!("cargo:rustc-link-lib=gomp");
         println!("cargo:rustc-link-lib=blas");
         println!("cargo:rustc-link-lib=lapack");
+
+        #[cfg(target_os = "macos")]
+        {
+            // on macOS, libomp is often installed via Homebrew; linking against it
+            // requires special handling
+
+            if let Ok(openmp_prefix) = Command::new("brew")
+                .args(&["--prefix", "libomp"])
+                .output()
+                .map_err(|e| format!("Failed to run brew: {}", e))
+            {
+                let openmp_prefix =
+                    PathBuf::from(String::from_utf8(openmp_prefix.stdout).unwrap().trim());
+                let openmp_lib_path = openmp_prefix.join("lib");
+
+                println!(
+                    "cargo:rustc-link-search=native={}",
+                    openmp_lib_path.display()
+                );
+
+                cfg.define("OpenMP_omp_LIBRARY", openmp_lib_path.join("libomp.dylib"));
+                cfg.define("OpenMP_CXX_LIB_NAMES", "omp");
+                cfg.define(
+                    "OpenMP_CXX_FLAGS",
+                    format!("-I{}", openmp_prefix.join("include").display()),
+                );
+            }
+
+            println!("cargo:rustc-link-lib=dylib=omp");
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            println!("cargo:rustc-link-lib=dylib=gomp");
+        }
     }
 
     println!("cargo:rerun-if-env-changed=ONEAPI_ROOT");
