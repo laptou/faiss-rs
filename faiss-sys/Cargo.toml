@@ -12,7 +12,10 @@ keywords = ["cbir", "clustering", "index", "similarity", "bindings"]
 
 [features]
 gpu = []
-static = ["cmake"]
+static = ["static-faiss", "static-blas", "static-omp"]
+static-blas = []
+static-omp = []
+static-faiss = ["cmake"]
 
 
 [build-dependencies]
