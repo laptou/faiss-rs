@@ -183,7 +183,7 @@ fn static_link_faiss() {
     }
 }
 
-#[cfg(feature = "static")]
+#[cfg(feature = "static-faiss")]
 fn link_cxx() {
     let cxx = match std::env::var("CXXSTDLIB") {
         Ok(s) if s.is_empty() => None,
@@ -207,7 +207,7 @@ fn link_cxx() {
     }
 }
 
-#[cfg(feature = "static")]
+#[cfg(feature = "static-faiss")]
 fn cuda_lib_path() -> String {
     // look for CUDA_PATH in environment,
     // then CUDA_LIB_PATH,
