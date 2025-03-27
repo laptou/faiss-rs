@@ -17,16 +17,16 @@ static-blas = ["faiss-sys/static-blas"]
 static-omp = ["faiss-sys/static-omp"]
 static-faiss = ["faiss-sys/static-faiss"]
 
-[target.'cfg(windows)'.features]
-static-auto = ["static-blas", "static-omp", "static-faiss"]
+# [target.'cfg(windows)'.features]
+# static-auto = ["static-blas", "static-omp", "static-faiss"]
 
-[target.'cfg(target_os = "macos")'.features]
-# static-auto does not statically link blas b/c blas is part of
-# Accelerate.framework; it cannot be statically linked on macOS
-static-auto = ["static-omp", "static-faiss"]
+# [target.'cfg(target_os = "macos")'.features]
+# # static-auto does not statically link blas b/c blas is part of
+# # Accelerate.framework; it cannot be statically linked on macOS
+# static-auto = ["static-omp", "static-faiss"]
 
-[target.'cfg(target_os = "linux")'.features]
-static-auto = ["static-blas", "static-omp", "static-faiss"]
+# [target.'cfg(target_os = "linux")'.features]
+# static-auto = ["static-blas", "static-omp", "static-faiss"]
 
 [badges.maintenance]
 status = "passively-maintained"
