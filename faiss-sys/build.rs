@@ -59,19 +59,9 @@ fn static_link_faiss() {
             compiler_root.join("lib").display()
         );
 
-        #[cfg(windows)]
-        {
-            println!("cargo:rustc-link-lib={blas_link_mode}=mkl_intel_lp64_dll");
-            println!("cargo:rustc-link-lib={blas_link_mode}=mkl_intel_thread_dll");
-            println!("cargo:rustc-link-lib={blas_link_mode}=mkl_core_dll");
-        }
-
-        #[cfg(unix)]
-        {
-            println!("cargo:rustc-link-lib={blas_link_mode}=mkl_intel_lp64");
-            println!("cargo:rustc-link-lib={blas_link_mode}=mkl_intel_thread");
-            println!("cargo:rustc-link-lib={blas_link_mode}=mkl_core");
-        }
+        println!("cargo:rustc-link-lib={blas_link_mode}=mkl_intel_lp64");
+        println!("cargo:rustc-link-lib={blas_link_mode}=mkl_intel_thread");
+        println!("cargo:rustc-link-lib={blas_link_mode}=mkl_core");
 
         println!("cargo:rustc-link-lib={omp_link_mode}=libiomp5md");
 
@@ -90,19 +80,9 @@ fn static_link_faiss() {
             mkl_root.join("lib").display()
         );
 
-        #[cfg(windows)]
-        {
-            println!("cargo:rustc-link-lib={blas_link_mode}=mkl_intel_lp64_dll");
-            println!("cargo:rustc-link-lib={blas_link_mode}=mkl_intel_thread_dll");
-            println!("cargo:rustc-link-lib={blas_link_mode}=mkl_core_dll");
-        }
-
-        #[cfg(unix)]
-        {
-            println!("cargo:rustc-link-lib={blas_link_mode}=mkl_intel_lp64");
-            println!("cargo:rustc-link-lib={blas_link_mode}=mkl_intel_thread");
-            println!("cargo:rustc-link-lib={blas_link_mode}=mkl_core");
-        }
+        println!("cargo:rustc-link-lib={blas_link_mode}=mkl_intel_lp64");
+        println!("cargo:rustc-link-lib={blas_link_mode}=mkl_intel_thread");
+        println!("cargo:rustc-link-lib={blas_link_mode}=mkl_core");
 
         println!("cargo:rustc-link-lib={omp_link_mode}=libiomp5md");
         cfg.define("MKLROOT", mkl_root);
