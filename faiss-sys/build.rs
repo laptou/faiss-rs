@@ -87,42 +87,18 @@ fn static_link_faiss() {
         println!("cargo:rustc-link-lib={omp_link_mode}=libiomp5md");
         cfg.define("MKLROOT", mkl_root);
     } else {
-        println!("cargo:rustc-link-lib={blas_link_mode}=blas");
-        println!("cargo:rustc-link-lib={blas_link_mode}=lapack");
-
         #[cfg(target_os = "macos")]
         {
-            // on macOS, libomp is often installed via Homebrew; linking against it
-            // requires special handling
-
-            if let Ok(openmp_prefix) = Command::new("brew")
-                .args(&["--prefix", "libomp"])
-                .output()
-                .map_err(|e| format!("Failed to run brew: {}", e))
-            {
-                let openmp_prefix =
-                    PathBuf::from(String::from_utf8(openmp_prefix.stdout).unwrap().trim());
-                let openmp_lib_path = openmp_prefix.join("lib");
-
-                println!(
-                    "cargo:rustc-link-search=native={}",
-                    openmp_lib_path.display()
-                );
-
-                cfg.define("OpenMP_omp_LIBRARY", openmp_lib_path.join("libomp.dylib"));
-                cfg.define("OpenMP_CXX_LIB_NAMES", "omp");
-                cfg.define(
-                    "OpenMP_CXX_FLAGS",
-                    format!("-I{}", openmp_prefix.join("include").display()),
-                );
-            }
-
+            // accelerate framework provides blas and lapack on macOS
+            println!("cargo:rustc-link-lib=framework=Accelerate");
             println!("cargo:rustc-link-lib={omp_link_mode}=omp");
         }
 
         #[cfg(not(target_os = "macos"))]
         {
-            println!("cargo:rustc-link-lib={blas_link_mode}=gomp");
+            println!("cargo:rustc-link-lib={blas_link_mode}=blas");
+            println!("cargo:rustc-link-lib={blas_link_mode}=lapack");
+            println!("cargo:rustc-link-lib={omp_link_mode}=gomp");
         }
     }
 
