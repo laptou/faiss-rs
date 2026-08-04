@@ -42,6 +42,9 @@ jobs:
       # Build and run tests
       - name: Run tests
         run: cargo test --verbose
+      # Check that GPU modules compile
+      - name: Check GPU feature
+        run: cargo check --features=gpu
 
   # test `faiss` crates with static linking
   build-static:

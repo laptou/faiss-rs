@@ -123,6 +123,7 @@ impl TrainType {
 }
 
 impl NativeIndex for IVFFlatIndexImpl {
+    type Inner = FaissIndex;
     fn inner_ptr(&self) -> *mut FaissIndex {
         self.inner
     }
@@ -163,13 +164,130 @@ impl IndexImpl {
     }
 }
 
+
+mod binary {
+    use super::*;
+    use crate::index::BinaryIndexImpl;
+
+    /// Alias for the native implementation of a binary IVF index.
+    pub type BinaryIVFIndex = BinaryIVFIndexImpl;
+
+    /// Native implementation of a binary IVF index.
+    #[derive(Debug)]
+    pub struct BinaryIVFIndexImpl {
+        inner: *mut FaissIndexBinaryIVF,
+    }
+
+    unsafe impl Send for BinaryIVFIndexImpl {}
+    unsafe impl Sync for BinaryIVFIndexImpl {}
+
+    impl CpuIndex<u8, i32> for BinaryIVFIndexImpl {}
+
+    impl Drop for BinaryIVFIndexImpl {
+        fn drop(&mut self) {
+            unsafe {
+                faiss_IndexBinaryIVF_free(self.inner);
+            }
+        }
+    }
+
+    impl NativeIndex<u8, i32> for BinaryIVFIndexImpl {
+        type Inner = FaissIndexBinary;
+        fn inner_ptr(&self) -> *mut FaissIndexBinary {
+            self.inner
+        }
+    }
+
+    impl FromInnerPtr<u8, i32> for BinaryIVFIndexImpl {
+        unsafe fn from_inner_ptr(inner_ptr: *mut FaissIndexBinary) -> Self {
+            BinaryIVFIndexImpl {
+                inner: inner_ptr as *mut FaissIndexBinaryIVF,
+            }
+        }
+    }
+
+    impl BinaryIVFIndexImpl {
+
+        /// Get number of probes at query time
+        pub fn nprobe(&self) -> u32 {
+            unsafe { faiss_IndexBinaryIVF_nprobe(self.inner_ptr()) as u32 }
+        }
+
+        /// Set number of probes at query time
+        pub fn set_nprobe(&mut self, value: u32) {
+            unsafe {
+                faiss_IndexBinaryIVF_set_nprobe(self.inner_ptr(), value as usize);
+            }
+        }
+
+        /// Get number of possible key values
+        pub fn nlist(&self) -> u32 {
+            unsafe { faiss_IndexBinaryIVF_nlist(self.inner_ptr()) as u32 }
+        }
+
+        /// Get max number of codes to visit to do a query
+        pub fn max_codes(&self) -> u32 {
+            unsafe { faiss_IndexBinaryIVF_max_codes(self.inner_ptr()) as u32 }
+        }
+
+        /// Set max number of codes to visit to do a query
+        pub fn set_max_codes(&self, value: u32) {
+            unsafe {
+                faiss_IndexBinaryIVF_set_max_codes(self.inner_ptr(), value as usize);
+            }
+        }
+
+        /// Check the inverted lists' imbalance factor.
+        /// 
+        /// 1 = perfectly balanced, > 1: imbalanced
+        pub fn imbalance_factor(&self) -> f64 {
+            unsafe { faiss_IndexBinaryIVF_imbalance_factor(self.inner_ptr()) }
+        }
+    }
+
+    impl_native_index_binary!(BinaryIVFIndexImpl);
+
+    impl TryClone for BinaryIVFIndexImpl {
+        fn try_clone(&self) -> Result<Self>
+        where
+            Self: Sized,
+        {
+            try_clone_binary_from_inner_ptr(self)
+        }
+    }
+
+    impl_concurrent_index_binary!(BinaryIVFIndexImpl);
+
+    impl BinaryIndexImpl {
+        /// 
+        /// Attempt a dynamic cast of a binary index to the Binary IVF index type.
+        pub fn into_binary_ivf(self) -> Result<BinaryIVFIndexImpl> {
+            unsafe {
+                let new_inner = faiss_IndexBinaryIVF_cast(self.inner_ptr());
+                if new_inner.is_null() {
+                    Err(Error::BadCast)
+                } else {
+                    mem::forget(self);
+                    Ok(BinaryIVFIndexImpl { inner: new_inner })
+                }
+            }
+        }
+    }
+
+}
+pub use binary::*;
+
+
 #[cfg(test)]
 mod tests {
 
     use super::IVFFlatIndexImpl;
     use crate::index::flat::FlatIndexImpl;
-    use crate::index::{index_factory, ConcurrentIndex, Idx, Index, UpcastIndex};
-    use crate::MetricType;
+    use crate::index::ivf_flat::BinaryIVFIndexImpl;
+    use crate::index::{index_factory, ConcurrentIndex, Idx, Index, SearchWithParams, UpcastIndex};
+    use crate::search_params::SearchParametersIVFImpl;
+    use crate::selector::IdSelector;
+    use crate::{index_binary_factory, MetricType};
 
     const D: u32 = 8;
 
@@ -206,6 +324,53 @@ mod tests {
 
         index.reset().unwrap();
         assert_eq!(index.ntotal(), 0);
+    }
+
+    #[test]
+    fn index_search_with_params_ivf() {
+        let q = FlatIndexImpl::new_l2(D).unwrap();
+        let mut index = IVFFlatIndexImpl::new_l2(q, D, 1).unwrap();
+        assert_eq!(index.d(), D);
+        assert_eq!(index.ntotal(), 0);
+        let some_data = &[
+            7.5_f32, -7.5, 7.5, -7.5, 7.5, 7.5, 7.5, 7.5, -1., 1., 1., 1., 1., 1., 1., -1., 4.,
+            -4., -8., 1., 1., 2., 4., -1., 8., 8., 10., -10., -10., 10., -10., 10., 16., 16., 32.,
+            25., 20., 20., 40., 15.,
+        ];
+        index.train(some_data).unwrap();
+        index.add(some_data).unwrap();
+        assert_eq!(index.ntotal(), 5);
+
+        let my_query = [0.; D as usize];
+
+        // set the selector to mask out the entire dataset 
+        // so any search would result in an empty queryset even though there 
+        // exists other vectors in the dataset.
+        let selector = IdSelector::range(Idx::new(6), Idx::new(10)).unwrap();
+        let params = SearchParametersIVFImpl::new_with(selector, 10, 100).unwrap();
+        let hits = index.search_with_params(&my_query, 5, &params.upcast()).unwrap();
+        assert!(hits.labels.into_iter().all(Idx::is_none));
+
+        // now filter the search to include only vectors with id in [0, 2).
+        let selector = IdSelector::range(Idx::new(0), Idx::new(2)).unwrap();
+        let params = SearchParametersIVFImpl::new_with(selector, 10, 1000).unwrap();
+        // we're asking for 5 neighbors but 3 of them have been masked out
+        // so we expect to get only 2 hits (i.e. ids 0 and 1).
+        let hits = index.search_with_params(&my_query, 5, &params.upcast()).unwrap();
+
+        let mut observed_labels = 
+            hits.labels
+            .into_iter()
+            .filter_map(|v| v.get())
+            .collect::<Vec<_>>();
+
+        observed_labels.sort();
+
+        assert_eq!(
+            observed_labels,
+            vec![0, 1]
+        );
+
     }
 
     #[test]
@@ -298,5 +463,65 @@ mod tests {
 
         let index_impl = index.upcast();
         assert_eq!(index_impl.d(), D);
+    }
+
+    #[test]
+    fn binary_ivf_index_from_cast() {
+        let mut index = index_binary_factory(16, "BIVF2").unwrap();
+        let some_data = &[
+            255u8,127,
+            1,1,
+            2,2,
+            10,10
+        ];
+        index.train(some_data).unwrap();
+        index.add(some_data).unwrap();
+        assert_eq!(index.ntotal(), 4);
+
+        let mut index: BinaryIVFIndexImpl = index.into_binary_ivf().unwrap();
+        assert_eq!(index.is_trained(), true);
+        assert_eq!(index.ntotal(), 4);
+        index.set_nprobe(3);
+        assert_eq!(index.nprobe(), 3);
+        index.set_max_codes(1);
+        assert_eq!(index.max_codes(), 1);
+
+        let hits = index.search(&[1, 1], 1).unwrap();
+        assert_eq!(hits.distances.len(), 1);
+        assert_eq!(hits.distances[0], 0);
+        assert_eq!(hits.labels.len(), 1);
+        assert_eq!(hits.labels[0].get().unwrap(), 1);
+    }
+
+    #[test]
+    fn binary_ivf_range_search() {
+        let mut index = index_binary_factory(16, "BIVF2").unwrap();
+        let some_data = &[
+            255u8,127,
+            1,1,
+            2,2,
+            10,10
+        ];
+        index.train(some_data).unwrap();
+        index.add(some_data).unwrap();
+        assert_eq!(index.ntotal(), 4);
+
+        let mut index: BinaryIVFIndexImpl = index.into_binary_ivf().unwrap();
+        assert_eq!(index.is_trained(), true);
+        assert_eq!(index.ntotal(), 4);
+        index.set_nprobe(3);
+        assert_eq!(index.nprobe(), 3);
+        index.set_max_codes(1);
+        assert_eq!(index.max_codes(), 1);
+
+        let hits = index.range_search(&[1, 1], 5).unwrap();
+
+        let (distances, labels) = hits.distance_and_labels();
+        assert_eq!(distances.len(), 2);
+
+        for (distance, label) in distances.iter().zip(labels) {
+            assert!(*distance < 5.);
+            assert!(label.is_some());
+        }
     }
 }

@@ -28,14 +28,14 @@ impl<BI> Drop for RefineFlatIndexImpl<BI> {
     }
 }
 
-impl<BI: NativeIndex> RefineFlatIndexImpl<BI> {
+impl<BI: NativeIndex<Inner = FaissIndex>> RefineFlatIndexImpl<BI> {
     pub fn new(base_index: BI) -> Result<Self> {
         let index = RefineFlatIndexImpl::new_helper(&base_index, true)?;
         mem::forget(base_index);
         Ok(index)
     }
 
-    fn new_helper<I: NativeIndex>(base_index: &I, own_fields: bool) -> Result<Self> {
+    fn new_helper<I: NativeIndex<Inner = FaissIndex>>(base_index: &I, own_fields: bool) -> Result<Self> {
         unsafe {
             let mut inner = ptr::null_mut();
             faiss_try(faiss_IndexRefineFlat_new(
@@ -62,6 +62,7 @@ impl<BI: NativeIndex> RefineFlatIndexImpl<BI> {
 }
 
 impl<BI> NativeIndex for RefineFlatIndexImpl<BI> {
+    type Inner = FaissIndex;
     fn inner_ptr(&self) -> *mut FaissIndex {
         self.inner
     }
@@ -98,8 +99,171 @@ impl TryFromInnerPtr for RefineFlatIndexImpl<IndexImpl> {
     }
 }
 
-impl_index!(RefineFlatIndexImpl<I>, I);
-impl_concurrent_index!(RefineFlatIndexImpl<I>, I: ConcurrentIndex);
+impl<BI> Index for RefineFlatIndexImpl<BI> {
+    fn is_trained(&self) -> bool {
+        unsafe { faiss_Index_is_trained(self.inner_ptr()) != 0 }
+    }
+
+    fn ntotal(&self) -> u64 {
+        unsafe { faiss_Index_ntotal(self.inner_ptr()) as u64 }
+    }
+
+    fn d(&self) -> u32 {
+        unsafe { faiss_Index_d(self.inner_ptr()) as u32 }
+    }
+
+    fn metric_type(&self) -> MetricType {
+        unsafe { MetricType::from_code(faiss_Index_metric_type(self.inner_ptr()) as u32).unwrap() }
+    }
+
+    fn add(&mut self, x: &[f32]) -> Result<()> {
+        unsafe {
+            let n = x.len() / self.d() as usize;
+            faiss_try(faiss_Index_add(self.inner_ptr(), n as i64, x.as_ptr()))?;
+            Ok(())
+        }
+    }
+
+    fn add_with_ids(&mut self, x: &[f32], xids: &[Idx]) -> Result<()> {
+        unsafe {
+            let n = x.len() / self.d() as usize;
+            faiss_try(faiss_Index_add_with_ids(
+                self.inner_ptr(),
+                n as i64,
+                x.as_ptr(),
+                xids.as_ptr() as *const _,
+            ))?;
+            Ok(())
+        }
+    }
+    fn train(&mut self, x: &[f32]) -> Result<()> {
+        unsafe {
+            let n = x.len() / self.d() as usize;
+            faiss_try(faiss_Index_train(self.inner_ptr(), n as i64, x.as_ptr()))?;
+            Ok(())
+        }
+    }
+    fn assign(&mut self, query: &[f32], k: usize) -> Result<AssignSearchResult> {
+        unsafe {
+            let nq = query.len() / self.d() as usize;
+            let mut out_labels = vec![Idx::none(); k * nq];
+            faiss_try(faiss_Index_assign(
+                self.inner_ptr(),
+                nq as idx_t,
+                query.as_ptr(),
+                out_labels.as_mut_ptr() as *mut _,
+                k as i64,
+            ))?;
+            Ok(AssignSearchResult { labels: out_labels })
+        }
+    }
+    fn search(&mut self, query: &[f32], k: usize) -> Result<SearchResult> {
+        unsafe {
+            let nq = query.len() / self.d() as usize;
+            let mut distances = vec![0_f32; k * nq];
+            let mut labels = vec![Idx::none(); k * nq];
+            faiss_try(faiss_Index_search(
+                self.inner_ptr(),
+                nq as idx_t,
+                query.as_ptr(),
+                k as idx_t,
+                distances.as_mut_ptr(),
+                labels.as_mut_ptr() as *mut _,
+            ))?;
+            Ok(SearchResult { distances, labels })
+        }
+    }
+    fn range_search(&mut self, query: &[f32], radius: f32) -> Result<RangeSearchResult> {
+        unsafe {
+            let nq = (query.len() / self.d() as usize) as idx_t;
+            let mut p_res: *mut FaissRangeSearchResult = ::std::ptr::null_mut();
+            faiss_try(faiss_RangeSearchResult_new(&mut p_res, nq))?;
+            faiss_try(faiss_Index_range_search(
+                self.inner_ptr(),
+                nq,
+                query.as_ptr(),
+                radius,
+                p_res,
+            ))?;
+            Ok(RangeSearchResult { inner: p_res })
+        }
+    }
+
+    fn reset(&mut self) -> Result<()> {
+        unsafe {
+            faiss_try(faiss_Index_reset(self.inner_ptr()))?;
+            Ok(())
+        }
+    }
+
+    fn remove_ids(&mut self, sel: &IdSelector) -> Result<usize> {
+        unsafe {
+            let mut n_removed = 0;
+            faiss_try(faiss_Index_remove_ids(
+                self.inner_ptr(),
+                sel.inner_ptr(),
+                &mut n_removed,
+            ))?;
+            Ok(n_removed)
+        }
+    }
+
+    fn verbose(&self) -> bool {
+        unsafe { faiss_Index_verbose(self.inner) != 0 }
+    }
+
+    fn set_verbose(&mut self, value: bool) {
+        unsafe {
+            faiss_Index_set_verbose(self.inner, std::os::raw::c_int::from(value));
+        }
+    }
+
+    
+            
+    fn reconstruct(
+        &self,
+        idx: Idx,
+        output: &mut [f32]
+    ) -> Result<()> {
+        unsafe {
+            let d = self.d() as usize;
+            if d != output.len() {
+                return Err(crate::error::Error::BadDimension);
+            }
+            
+            faiss_try(faiss_Index_reconstruct(
+                self.inner_ptr(),
+                idx.0,
+                output.as_mut_ptr()
+            ))?;
+
+            Ok(())
+        }
+    }
+
+    fn reconstruct_n(
+        &self, 
+        first_key: Idx, 
+        count: usize, 
+        output: &mut [f32]
+    ) -> Result<()> {
+        unsafe {
+            let d = self.d() as usize;
+            if count * d != output.len() {
+                return Err(crate::error::Error::BadDimension);
+            }
+            
+            faiss_try(faiss_Index_reconstruct_n(
+                self.inner_ptr(),
+                first_key.0,
+                count as i64,
+                output.as_mut_ptr()
+            ))?;
+
+            Ok(())
+        }
+    }
+}
 
 impl<I> TryClone for RefineFlatIndexImpl<I> {
     fn try_clone(&self) -> Result<Self>
@@ -113,6 +277,57 @@ impl<I> TryClone for RefineFlatIndexImpl<I> {
                 inner: new_index_ptr as *mut FaissIndexFlat,
                 base_index: PhantomData,
             })
+        }
+    }
+}
+
+impl<BI> ConcurrentIndex for RefineFlatIndexImpl<BI>
+where
+    BI: ConcurrentIndex,
+{
+    fn assign(&self, query: &[f32], k: usize) -> Result<AssignSearchResult> {
+        unsafe {
+            let nq = query.len() / self.d() as usize;
+            let mut out_labels = vec![Idx::none(); k * nq];
+            faiss_try(faiss_Index_assign(
+                self.inner,
+                nq as idx_t,
+                query.as_ptr(),
+                out_labels.as_mut_ptr() as *mut _,
+                k as i64,
+            ))?;
+            Ok(AssignSearchResult { labels: out_labels })
+        }
+    }
+    fn search(&self, query: &[f32], k: usize) -> Result<SearchResult> {
+        unsafe {
+            let nq = query.len() / self.d() as usize;
+            let mut distances = vec![0_f32; k * nq];
+            let mut labels = vec![Idx::none(); k * nq];
+            faiss_try(faiss_Index_search(
+                self.inner,
+                nq as idx_t,
+                query.as_ptr(),
+                k as idx_t,
+                distances.as_mut_ptr(),
+                labels.as_mut_ptr() as *mut _,
+            ))?;
+            Ok(SearchResult { distances, labels })
+        }
+    }
+    fn range_search(&self, query: &[f32], radius: f32) -> Result<RangeSearchResult> {
+        unsafe {
+            let nq = (query.len() / self.d() as usize) as idx_t;
+            let mut p_res: *mut FaissRangeSearchResult = ptr::null_mut();
+            faiss_try(faiss_RangeSearchResult_new(&mut p_res, nq))?;
+            faiss_try(faiss_Index_range_search(
+                self.inner,
+                nq,
+                query.as_ptr(),
+                radius,
+                p_res,
+            ))?;
+            Ok(RangeSearchResult { inner: p_res })
         }
     }
 }
