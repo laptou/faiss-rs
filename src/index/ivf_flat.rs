@@ -137,8 +137,7 @@ impl FromInnerPtr for IVFFlatIndexImpl {
     }
 }
 
-impl_index!(IVFFlatIndex);
-impl_concurrent_index!(IVFFlatIndexImpl);
+impl_native_index!(IVFFlatIndex);
 
 impl TryClone for IVFFlatIndexImpl {
     fn try_clone(&self) -> Result<Self>
@@ -148,6 +147,8 @@ impl TryClone for IVFFlatIndexImpl {
         try_clone_from_inner_ptr(self)
     }
 }
+
+impl_concurrent_index!(IVFFlatIndexImpl);
 
 impl IndexImpl {
     /// Attempt a dynamic cast of an index to the IVF flat index type.

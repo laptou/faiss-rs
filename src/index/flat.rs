@@ -141,7 +141,7 @@ impl TryFromInnerPtr for FlatIndexImpl {
     }
 }
 
-impl_index!(FlatIndex);
+impl_native_index!(FlatIndex);
 
 impl TryClone for FlatIndexImpl {
     fn try_clone(&self) -> Result<Self>

@@ -112,7 +112,7 @@ impl LshIndex {
     }
 }
 
-impl_index!(LshIndex);
+impl_native_index!(LshIndex);
 
 impl TryClone for LshIndex {
     fn try_clone(&self) -> Result<Self>
